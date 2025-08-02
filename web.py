@@ -15,7 +15,7 @@ def health():
 def run_streamlit():
     time.sleep(5)  # Wait a bit for Flask to start
     cmd = [
-        "streamlit", "run", "main.py",
+        "streamlit", "run", "app.py",
         "--server.port=8080",
         "--server.address=0.0.0.0",
         "--browser.gatherUsageStats=false",
