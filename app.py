@@ -121,7 +121,12 @@ def main():
 
     # ---- App Mode UI ----
     st.sidebar.title("⚙️ App Mode")
-    mode = st.sidebar.radio("Select Module", ["Cutoff-based Predictor", "Community-based Predictor", "College-wise Viewer"])
+    mode = st.sidebar.radio("Select Module", [
+        "Cutoff-based Predictor", 
+        "Community-based Predictor", 
+        "College-wise Viewer",
+        "Rank-wise Predictor"
+    ])
     round_selected = st.sidebar.radio("Choose Counseling Round:", sorted(data["Round"].unique()))
     df = data[data["Round"] == round_selected]
 
@@ -193,9 +198,57 @@ def main():
             st.warning("No data found.")
 
         return None
+    
+        # ---- Mode 4: Rank-wise Predictor (Simplified) ----
+    elif mode == "Rank-wise Predictor":
+        st.markdown("<h2 class='main-title'>🎯 Colleges Eligible for Your Rank</h2>", unsafe_allow_html=True)
 
+        # Input: Rank only
+        user_rank = st.number_input("Enter Your TNEA Rank", min_value=1, max_value=100000, step=1)
+
+        if st.button("Find Eligible Colleges"):
+            # Work with full data for all communities and branches
+            df_rank = df.copy()
+
+            # Sort by cutoff descending (highest cutoff first → priority admission)
+            df_rank = df_rank.sort_values(by="Min_Cutoff", ascending=False).reset_index(drop=True)
+
+            # Calculate cumulative seats per (Community, Branch) group
+            # We group by Community and BranchCode to simulate real seat-wise ranking
+            results = []
+            for (branch, community), group in df_rank.groupby(["BranchCode", "Community"]):
+                group = group.sort_values(by="Min_Cutoff", ascending=False).reset_index(drop=True)
+                group["Last_Admitted_Rank"] = group["No_of_Students"].cumsum()
+                group["First_Admitted_Rank"] = group["Last_Admitted_Rank"] - group["No_of_Students"] + 1
+                # Filter rows where user rank falls in range
+                eligible_in_group = group[
+                    (group["First_Admitted_Rank"] <= user_rank) &
+                    (group["Last_Admitted_Rank"] >= user_rank)
+                ]
+                results.append(eligible_in_group)
+
+            # Combine all eligible rows
+            eligible = pd.concat(results, ignore_index=True) if results else pd.DataFrame()
+
+            # Select only the clean columns to display
+            if not eligible.empty:
+                display_df = eligible[[
+                    "CollegeCode", "CollegeName", "BranchCode", "Community",
+                    "Min_Cutoff", "Max_Cutoff", "No_of_Students"
+                ]].sort_values(by="Min_Cutoff", ascending=False).reset_index(drop=True)
+
+                st.success(f"✅ {len(display_df)} college(s) found where your rank ({user_rank}) may qualify.")
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
+            else:
+                st.warning("❌ No colleges found for your rank. Try checking previous rounds or lower cutoff trends.")
+
+        # Optional: Add info note
+        st.caption("💡 *Colleges are predicted based on cutoff order and seat availability per community & branch.*")
+
+        return None
     return None  # ✅ Prevent Streamlit from showing internal objects
 
-# ----- RUN THE APP -----
+    
+    # ----- RUN THE APP -----
 if __name__ == "__main__":
     main()
