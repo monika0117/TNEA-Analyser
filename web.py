@@ -24,15 +24,14 @@ def run_streamlit():
     ]
     subprocess.run(cmd)
 
-@app.before_first_request
-def start_streamlit_thread():
-    thread = threading.Thread(target=run_streamlit, daemon=True)
-    thread.start()
-
 # Optional: redirect root to Streamlit
 @app.route("/")
 def home():
     return "<h3>Starting Streamlit app...</h3><p>Go to <a href='/streamlit'>/streamlit</a></p>"
 
 if __name__ == '__main__':
+    # Start the Streamlit thread before Flask runs
+    thread = threading.Thread(target=run_streamlit, daemon=True)
+    thread.start()
+
     app.run(port=int(os.environ.get("PORT", 8080)))
